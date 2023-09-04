@@ -1,0 +1,3 @@
+mcschematic==11.4.2
+numpy==1.24.2
+pynbs==1.1.0

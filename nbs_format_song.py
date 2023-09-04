@@ -1,118 +1,140 @@
 import pynbs
-import sys
+import os
 from constants import *
 
-def getValidInput(validInputs, msg):
-  isValid = 0
-  while not isValid:
-    userInput = input(msg)
-    if userInput in validInputs:
-      isValid = 1
-    else:
-      print('"', userInput, '" is not a valid input.')
-  return userInput
+def get_valid_input(valid_inputs: list, msg: str) -> str:
+  valid = False
 
-def removeCustomNotes(chord):
-  newChord = []
+  while not valid:
+    user_input = input(msg)
+
+    if user_input in valid_inputs:
+      valid = True
+    else:
+      print(f'"{user_input}" is not a valid input.')
+  
+  return user_input
+
+
+def remove_custom_notes(chord: list) -> list:
+  new_chord = []
+
   for note in chord:
     if note.instrument <= 15:
-      newChord.append(note)
-  return newChord
+      new_chord.append(note)
+    
+  return new_chord
 
-def fixIllegalNotes(chord):
-  newChord = []
+
+def fix_illegal_notes(chord: list) -> list:
+  new_chord = []
+
   for note in chord:
     if note.key < INSTRUMENT_RANGE[0]:
       while note.key < INSTRUMENT_RANGE[0]:
         note.key += 12
+    
     elif note.key > INSTRUMENT_RANGE[1]:
       while note.key > INSTRUMENT_RANGE[1]:
         note.key -= 12
-    newChord.append(note)
-  return newChord
+    
+    new_chord.append(note)
 
-def removeHighestHelper(chord, chordMaxSize):
-  if len(chord) <= chordMaxSize:
+  return new_chord
+
+
+def remove_helper(chord: list, chord_max_size: int, type: str) -> list:
+  if len(chord) <= chord_max_size:
     return chord
-  highestNote = chord[0]
-  for note in chord:
-    if note.key > highestNote.key:
-      highestNote = note
-  chord.remove(highestNote)
-  return removeHighestHelper(chord, chordMaxSize)
 
-def removeHighestNotes(chord, chordMaxSize):
-  lowerOctaveNotes = upperOctaveNotes = []
-  for note in chord:
-    if note.key < INSTRUMENT_RANGE[0] + 12:
-      lowerOctaveNotes.append(note)
-    else:
-      upperOctaveNotes.append(note)
-  lowerOctaveNotes = removeHighestHelper(lowerOctaveNotes, chordMaxSize)
-  upperOctaveNotes = removeHighestHelper(upperOctaveNotes, chordMaxSize)
-  return lowerOctaveNotes + upperOctaveNotes
+  first_note = chord[0]
 
-def removeLowestHelper(chord, chordMaxSize):
-  if len(chord) <= chordMaxSize:
-    return chord
-  lowestNote = chord[0]
   for note in chord:
-    if note.key < lowestNote.key:
-      lowestNote = note
-  chord.remove(lowestNote)
-  return removeLowestHelper(chord, chordMaxSize)
+    if type == 'high':
+      if note.key > first_note.key:
+        first_note = note
 
-def removeLowestNotes(chord, chordMaxSize):
-  lowerOctaveNotes = []
-  upperOctaveNotes = []
-  for note in chord:
-    if note.key < INSTRUMENT_RANGE[0] + 12:
-      lowerOctaveNotes.append(note)
-    else:
-      upperOctaveNotes.append(note)
-  lowerOctaveNotes = removeLowestHelper(lowerOctaveNotes, chordMaxSize)
-  upperOctaveNotes = removeLowestHelper(upperOctaveNotes, chordMaxSize)
-  return lowerOctaveNotes + upperOctaveNotes
-
-def removeChordViolations(chord):
-  listOfChords = {}
-  for note in chord:
-    if note.instrument in listOfChords:
-      listOfChords[note.instrument].append(note)
-    else:
-      listOfChords[note.instrument] = [note]
-  newChord = []
-  for instrument, singleChord in listOfChords.items():
-    if KEEP_NOTES_BY_INSTRUMENT[INSTRUMENTS[instrument]] == 'h':
-      newSingleChord = removeLowestNotes(singleChord, CHORD_MAX_SIZES[INSTRUMENTS[instrument]])
-    else:
-      newSingleChord = removeHighestNotes(singleChord, CHORD_MAX_SIZES[INSTRUMENTS[instrument]])
-    newChord += newSingleChord
+    elif type == 'low':
+      if note.key < first_note.key:
+        first_note = note
   
-  # We need to preserve the original note order, because sometimes
-  # saving has issues when notes are reordered
-  preservedOrderChord = []
-  for note in chord:
-    if note in newChord:
-      preservedOrderChord.append(note)
-  return [preservedOrderChord, len(preservedOrderChord) < len(chord)]
+  chord.remove(first_note)
 
-def main():
-  # get song file from user
-  songFile = input('Please enter the file name of your song (include the .nbs): ')
-  try:
-    song = pynbs.read(songFile)
-    songName = songFile[:songFile.find('.nbs')]
-  except:
-    sys.exit('Error: could not find "' + songFile + '"')
+  return remove_helper(chord, chord_max_size, type)
+
+
+def remove_notes(chord: list, chord_max_size: int, type: str) -> list:
+  lower_octave_notes = []
+  upper_octave_notes = []
+
+  for note in chord:
+    if note.key < INSTRUMENT_RANGE[0] + 12:
+      lower_octave_notes.append(note)
+    else:
+      upper_octave_notes.append(note)
+
+  lower_octave_notes = remove_helper(lower_octave_notes, chord_max_size, type)
+  upper_octave_notes = remove_helper(upper_octave_notes, chord_max_size, type)
+
+  return lower_octave_notes + upper_octave_notes
+
+
+def remove_chord_violations(chord: list) -> list:
+  chord_list = {}
+  new_chord = []
+  preserved_order_chord = []
+
+  for note in chord:
+    if note.instrument in chord_list:
+      chord_list[note.instrument].append(note)
+    else:
+      chord_list[note.instrument] = [note]
+
+  for instrument, single_chord in chord_list.items():
+    type = 'high'
+
+    if KEEP_NOTES_BY_INSTRUMENT[INSTRUMENTS[instrument]] == 'h':
+      type = 'low'
+    
+    new_chord.append(remove_notes(single_chord, CHORD_MAX_SIZES[INSTRUMENTS[instrument]], type))
+  
+  # need to preserve the original note order because sometimes saving has issues when notes are reordered
+
+  for note in chord:
+    if note in new_chord:
+      preserved_order_chord.append(note)
+  
+  return [preserved_order_chord, len(preserved_order_chord) < len(chord)]
+
+
+def main() -> None:
+  compress_song = False
+  max_chord_violation = False
+
+  while True:
+    song_file = input('Please enter the file name of your song (include the .nbs): ')
+
+    if os.path.exists(song_file) == False:
+      print('File does not exist. Please try again.')
+
+    else:
+      try:
+        song = pynbs.read(song_file)
+        song_name = song_file[:song_file.find('.nbs')]
+        break
+
+      except Exception as error:
+        print(f'error: {error}')
 
   # give user option to compress song
-  originalSongLength = song.header.song_length
-  if originalSongLength > MAX_SONG_LENGTH:
-    print('Your song\'s length is ', originalSongLength, ', and the max length of a song is ', MAX_SONG_LENGTH, '.')
+  if song.header.song_length > MAX_SONG_LENGTH:
+    print(f'Your song\'s length is {song.header.song_length}, and the max length of a song is {MAX_SONG_LENGTH}.')
+  
   print('You might want to compress your song if it is too slow or too long.')
   print('Compressing your song would remove every other tick and make it half as long. This may or may not make your song sound much worse.')
-  settingCompress = 1 if getValidInput(['y', 'n'], 'Would you like to compress your song? (y/n): ') == 'y' else 0
+
+  if get_valid_input(['y', 'n'], 'Would you like to compress your song? (y/n): ') == 'y':
+    compress_song = True
 
   # warn user if there are notes out of range
   for note in song.notes:
@@ -127,40 +149,37 @@ def main():
     input('Press Enter to Continue')
   
   newSong = pynbs.new_file()
-  newSong.header = song.header
-  newSong.layers = song.layers
-  newSong.header.tempo = 5
-
-  hasMaxChordViolation = 0
+  newSong.header, newSong.layers, newSong.header.tempo = song.header, song.layers, 5
 
   # iterate through the whole song by chords
   for tick, chord in song:
     newTick = tick
-    if settingCompress == 1:
+
+    if compress_song == True:
       newTick = tick // 2
+    
     if newTick > MAX_SONG_LENGTH:
       print('Notice: Your song was too long, so some had to be cut off the end.')
       break
-    if (tick % 2 != 0 and settingCompress == 0) or (tick %2 == 0):
-      chord = removeCustomNotes(chord)
-      chord = fixIllegalNotes(chord)
-      [chord, chordViolation] = removeChordViolations(chord)
-      if chordViolation == 1:
-        hasMaxChordViolation = 1
+  
+    if (tick % 2 != 0 and compress_song == False) or (tick %2 == 0):
+      chord = remove_custom_notes(chord)
+      chord = fix_illegal_notes(chord)
+      [chord, max_chord_violation] = remove_chord_violations(chord)
+      
       for note in chord:
-        note.tick = newTick
-        note.panning = 0
-        note.pitch = 0
+        note.tick, note.panning, note.pitch = newTick, 0, 0
+        
         newSong.notes.append(note)
   
-  if hasMaxChordViolation == 1:
+  if max_chord_violation == True:
     print('Notice: Your song contained chords that were larger than allowed. Some notes were removed from these chords.')
 
   # save the new song
-  newFileName = songName + ' (Formatted).nbs'
+  new_file_name = f'{song_name}-(Formatted).nbs'
 
-  newSong.save(newFileName)
-  print('Your formatted song was saved under "', newFileName, '"')
+  newSong.save(new_file_name)
+  print('Your formatted song was saved under "', new_file_name, '"')
 
 
 if __name__ == '__main__':
