@@ -40,11 +40,10 @@ Once one of these commands work, take note of which one (`py`, `python`, or `pyt
 
 ### Installing Packages
 
-The two Python scripts in this repo make use of two existing Python libraries: [pynbs](https://github.com/OpenNBS/pynbs) and [mcschematic](https://github.com/Sloimayyy/mcschematic). The first is used to parse, edit, and create `.nbs` files, and the second is used to create and edit Minecraft schematics. Run the following two commands to install them. You can also go to their respective repos for more details.
+The two Python scripts in this repo make use of two existing Python libraries: [pynbs](https://github.com/OpenNBS/pynbs) and [mcschematic](https://github.com/Sloimayyy/mcschematic). The first is used to parse, edit, and create `.nbs` files, and the second is used to create and edit Minecraft schematics. Run the following command inside of the directory.
 
 ```bash
-pip install pynbs
-pip install mcschematic
+pip install -r requirements.txt
 ```
 
 Both of these libraries can be installed using `pip`, which should be automatically installed for you alongside Python. If you are on Windows, this should have been a checkbox during installation.
